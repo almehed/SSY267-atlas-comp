@@ -62,12 +62,12 @@ df.short <- df[rowSums(df[,-1])>0,]
 cm <- matrix(0,nrow = max(df.short$Reference)+1, ncol = max(df.short$Prediction)+1) %>% as.matrix
 
 #For each reference label count predicted labels ad add to a matrix
-for (ref in 1:max(df.short$Reference)) {
+for (ref in 0:max(df.short$Reference)) {
   label.pred <- df.short[df.short$Reference == ref,,]
   label.pred.count <- label.pred %>% count(Prediction) %>% as.matrix
   for (i in 1:length(label.pred.count[,1])) {
     pred <- label.pred.count[i,1]
-    cm[ref, pred] <- label.pred.count[i,2]
+    cm[ref+1, pred+1] <- label.pred.count[i,2]
   }
 }
 
