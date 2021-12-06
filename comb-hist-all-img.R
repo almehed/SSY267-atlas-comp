@@ -70,9 +70,13 @@ for (ref in 0:max(df.short$Reference)) {
     cm[ref+1, pred+1] <- label.pred.count[i,2]
   }
 }
-
+#log for scaling
 cm.log <- log(cm+1)
 cm.log.df <- cm.log %>% melt
+
+#Move back indexes to start at zero not 1
+cm.log.df$X1 <- cm.log.df$X1-1
+cm.log.df$X2 <- cm.log.df$X2-1
 
 
 ######Plot Plot Plot Plot log
@@ -81,8 +85,8 @@ ggplot(data=cm.log.df, aes(X2, X1, fill = value)) +
   scale_fill_gradient(low = "white", high = "springgreen4") +
   coord_fixed() +
   guides(fill = guide_colourbar(title = "log(count)"))+
-  scale_x_continuous(name="Prediction", limits=c(0, 210)) +
-  scale_y_continuous(name="Reference", limits=c(0, 100))+
+  scale_x_continuous(name="Prediction", limits=c(-1, 210)) +
+  scale_y_continuous(name="Reference", limits=c(-1, 100))+
   theme(
     panel.background = element_rect(fill = NA),
     panel.grid.major = element_line(colour = "gray"),
