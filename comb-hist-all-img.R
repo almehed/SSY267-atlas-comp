@@ -92,12 +92,12 @@ ggplot(data=cm.log.df, aes(X1, X2, fill = value)) +
   scale_fill_gradient(low = "white", high = "springgreen4") +
   coord_fixed() +
   guides(fill = guide_colourbar(title = "log(count)"))+
-  scale_y_continuous(name="Prediction", limits=c(-1, 100)) +
-  scale_x_continuous(name="Reference", limits=c(-1, 210))+
+  scale_y_continuous(name="Prediction", limits=c(-1, 100),breaks = scales::pretty_breaks(n = 15)) +
+  scale_x_continuous(name="Reference", limits=c(-1, 210), breaks = scales::pretty_breaks(n = 15))+
   theme(
     panel.background = element_rect(fill = NA),
-    panel.grid.major = element_line(colour = "gray"),
-    panel.grid.minor = element_line(colour = "gray"),
+    panel.grid.major = element_line(colour = "gray", size = 0.2),
+    panel.grid.minor = element_line(colour = "gray", size = 0.2),
     panel.ontop = TRUE
   )
 
