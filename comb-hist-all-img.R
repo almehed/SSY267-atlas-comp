@@ -38,24 +38,29 @@ df.short <- df[rowSums(df[,-1])>0,]
 
 ################################## Read all images ######################################
 
-#List of file paths, full.name = TRUE adds the path to the name eg. "atlases/mgc2hammers-seg138/a1.nii.gz"
-files.true.HM <- list.files(path = "atlases/hammers-seg95", pattern = ".nii.gz", full.names = TRUE)
-files.estimate.MGC <- list.files(path = "atlases/mgc2hammers-seg138", pattern = ".nii.gz", full.names = TRUE)
+#List of file paths, full.name = TRUE adds the path to the name eg. "../atlases/mgc2hammers-seg138/a1.nii.gz"
+files.true.HM <- list.files(path = "../atlases/hammers-seg95", pattern = ".nii.gz", full.names = TRUE)
+files.estimate.MGC <- list.files(path = "../atlases/mgc2hammers-seg138", pattern = ".nii.gz", full.names = TRUE)
 
-#Read all files in list of files -> list of nifti elements
-labels.true.HM <- lapply(files.true.HM, readnii)
-labels.estimate.MGC <-lapply(files.estimate.MGC, readnii)
+files.true.MGC <- list.files(path = "../atlases/mgc-seg138", pattern = ".nii.gz", full.names = TRUE)
+files.estimate.HM <- list.files(path = "../atlases/hammers2mgc-seg95", pattern = ".nii.gz", full.names = TRUE)
 
-#Convert the nifti objects to lists/vectors
-labels.true.HM.list <- lapply(labels.true.HM, as.vector)
-labels.estimate.MGC.list <- lapply(labels.estimate.MGC, as.vector)
+#OBS ONLY CHANGE HERE!! Read all files in list of files -> list of nifti elements 
+labels.true <- lapply(files.true.MGC, readnii)
+labels.estimate <-lapply(files.estimate.HM, readnii)
+
+#Convert the nifti objects to lists/vectors and convert to single vector
+labels.true.list <- lapply(labels.true, as.vector) %>% unlist
+labels.estimate.list <- lapply(labels.estimate, as.vector) %>% unlist
 
 #Convert lists to single vector
-labels.true.HM.vec <- unlist(labels.true.HM.list)
-labels.estimate.MGC.vec <- unlist(labels.estimate.MGC.list)
+#labels.true.vec <- unlist(labels.true.list)
+#labels.estimate.vec <- unlist(labels.estimate.list)
 
 #Create a data frame with voxels, reference (labels.true) and prediction (labels.estimate)
-df <- data.frame(Voxel = 1:length(labels.true.HM.vec), Reference = labels.true.HM.vec, Prediction = labels.estimate.MGC.vec)
+df <- data.frame(Voxel = 1:length(labels.true.list), Reference = labels.true.list, Prediction = labels.estimate.list)
+
+#Remove overlapping background
 df.short <- df[rowSums(df[,-1])>0,]
 
 
@@ -65,9 +70,11 @@ cm <- matrix(0,nrow = max(df.short$Reference)+1, ncol = max(df.short$Prediction)
 for (ref in 0:max(df.short$Reference)) {
   label.pred <- df.short[df.short$Reference == ref,,]
   label.pred.count <- label.pred %>% count(Prediction) %>% as.matrix
-  for (i in 1:length(label.pred.count[,1])) {
-    pred <- label.pred.count[i,1]
-    cm[ref+1, pred+1] <- label.pred.count[i,2]
+  if (length(label.pred.count[,1]) > 0){
+    for (i in 1:length(label.pred.count[,1])) {
+      pred <- label.pred.count[i,1]
+      cm[ref+1, pred+1] <- label.pred.count[i,2]
+    }
   }
 }
 #log for scaling
@@ -80,17 +87,27 @@ cm.log.df$X2 <- cm.log.df$X2-1
 
 
 ######Plot Plot Plot Plot log
-ggplot(data=cm.log.df, aes(X2, X1, fill = value)) + 
+ggplot(data=cm.log.df, aes(X1, X2, fill = value)) + 
   geom_tile() + 
   scale_fill_gradient(low = "white", high = "springgreen4") +
   coord_fixed() +
   guides(fill = guide_colourbar(title = "log(count)"))+
-  scale_x_continuous(name="Prediction", limits=c(-1, 210)) +
-  scale_y_continuous(name="Reference", limits=c(-1, 100))+
+  scale_y_continuous(name="Prediction", limits=c(-1, 100)) +
+  scale_x_continuous(name="Reference", limits=c(-1, 210))+
   theme(
     panel.background = element_rect(fill = NA),
     panel.grid.major = element_line(colour = "gray"),
     panel.grid.minor = element_line(colour = "gray"),
     panel.ontop = TRUE
   )
+
+########### clustering ###########
+
+cm.log.df.no.zero <- cm.log.df[cm.log.df[,3]>0,]
+cm.avg <- cm.log.df[1:2]
+dist_mat <- dist(cm.log.df.no.zero, method = 'euclidean')
+hclust_avg <- hclust(dist_mat, method = 'average')
+plot(hclust_avg)
+cluster.cut <- cutree(hclust_avg, 20)
+
 
