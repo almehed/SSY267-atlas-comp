@@ -2,41 +2,10 @@ library(oro.nifti)
 library(neurobase)
 library(tidyverse)
 library(ggplot2)
-library(imager)
-library(caret)
 library(reshape)
+library(plotly)
 
-
-########################## Read 2 images and compare ok! #################################
-file.true1 <- "atlases/hammers-seg95/a1.nii.gz"
-file.estimate1 <- "atlases/mgc2hammers-seg138/a1.nii.gz"
-file.true2 <- "atlases/hammers-seg95/a2.nii.gz"
-file.estimate2 <- "atlases/mgc2hammers-seg138/a2.nii.gz"
-
-#Read manually segmented images
-labels.true1 <- readnii(file.true1) 
-labels.true2 <- readnii(file.true2) 
-
-#Read automatically segmented images
-labels.estimate1 <- readnii(file.estimate1)
-labels.estimate2 <- readnii(file.estimate2)
-
-labels.true.list1 <- labels.true1[ , , ] %>% as.vector
-labels.estimate.list1 <- labels.estimate1[ , , ] %>% as.vector
-
-labels.true.list2 <- labels.true2[ , , ] %>% as.vector
-labels.estimate.list2 <- labels.estimate2[ , , ] %>% as.vector
-
-labels.true.list <- c(labels.true.list1,labels.true.list2)
-labels.estimate.list <- c(labels.estimate.list1,labels.estimate.list2)
-
-#Put voxel index and labels of each voxel in a data frame
-df <- data.frame(Voxel = 1:(length(labels.true1)+length(labels.true2)), Reference = labels.true.list,Prediction = labels.estimate.list)
-df.short <- df[rowSums(df[,-1])>0,]
-
-#########################################################################################
-
-################################## Read all images ######################################
+################################## Read all images and names ######################################
 
 #List of file paths, full.name = TRUE adds the path to the name eg. "../atlases/mgc2hammers-seg138/a1.nii.gz"
 files.true.HM <- list.files(path = "../atlases/hammers-seg95", pattern = ".nii.gz", full.names = TRUE)
@@ -45,28 +14,46 @@ files.estimate.MGC <- list.files(path = "../atlases/mgc2hammers-seg138", pattern
 files.true.MGC <- list.files(path = "../atlases/mgc-seg138", pattern = ".nii.gz", full.names = TRUE)
 files.estimate.HM <- list.files(path = "../atlases/hammers2mgc-seg95", pattern = ".nii.gz", full.names = TRUE)
 
+#File paths for label names
+file.HM.names <- "../atlases/hm-regionnames.tsv"
+file.MGC.names <- "../atlases/miccaigc-regionnames.tsv"
+
 #OBS ONLY CHANGE HERE!! Read all files in list of files -> list of nifti elements 
 labels.true <- lapply(files.true.MGC, readnii)
 labels.estimate <-lapply(files.estimate.HM, readnii)
+
+# Read label names Change HM or MGC depending on true and estimate
+names.true <- read_tsv(file.HM.names) %>% select(name)
+names.estimate <- read_tsv(file.MGC.names) %>% select(name)
+
+
+############# Reformate names and labels to formates to use #################
+
+# Reformate name df as character vector
+names.true.vec <- as.character(names.true$name)
+names.estimate.vec <- as.character(names.estimate$name)
 
 #Convert the nifti objects to lists/vectors and convert to single vector
 labels.true.list <- lapply(labels.true, as.vector) %>% unlist
 labels.estimate.list <- lapply(labels.estimate, as.vector) %>% unlist
 
-#Convert lists to single vector
-#labels.true.vec <- unlist(labels.true.list)
-#labels.estimate.vec <- unlist(labels.estimate.list)
-
 #Create a data frame with voxels, reference (labels.true) and prediction (labels.estimate)
 df <- data.frame(Voxel = 1:length(labels.true.list), Reference = labels.true.list, Prediction = labels.estimate.list)
+
+#Garbage removal....
+rm(labels.true, labels.estimate, labels.true.list, labels.estimate.list, files.estimate.HM,files.estimate.MGC,files.true.HM, files.true.MGC)
 
 #Remove overlapping background
 df.short <- df[rowSums(df[,-1])>0,]
 
+#Garbage removal....
+rm(df)
+
+################## Create histogram ####################
 
 cm <- matrix(0,nrow = max(df.short$Reference)+1, ncol = max(df.short$Prediction)+1) %>% as.matrix
 
-#For each reference label count predicted labels ad add to a matrix
+#For each reference label count predicted labels and add to a matrix
 for (ref in 0:max(df.short$Reference)) {
   label.pred <- df.short[df.short$Reference == ref,,]
   label.pred.count <- label.pred %>% count(Prediction) %>% as.matrix
@@ -77,8 +64,34 @@ for (ref in 0:max(df.short$Reference)) {
     }
   }
 }
+
+#Garbage removal....
+rm(label.pred)
+
 #log for scaling
 cm.log <- log(cm+1)
+
+
+############## Plot with plotly - Do not use "layout" options together with "x" and "y"! ##################
+
+fig <- plot_ly(
+  x = names.estimate.vec, y = names.true.vec, #For small images
+  z = cm.log, type = "heatmap",
+  colors = "Purples"
+) #%>%   layout(xaxis = list(title = 'Prediction', #For large image
+   #                         dtick = 20, 
+    #                        tick0 = 0, 
+     #                       tickmode = "linear"), 
+      #         yaxis = list(title = 'Reference',
+       #                     dtick = 10, 
+        #                    tick0 = 0, 
+         #                   tickmode = "linear"))
+
+fig
+
+################## Plot using ggplot #######################
+
+#convert to df on long format
 cm.log.df <- cm.log %>% melt
 
 #Move back indexes to start at zero not 1
@@ -86,8 +99,7 @@ cm.log.df$X1 <- cm.log.df$X1-1
 cm.log.df$X2 <- cm.log.df$X2-1
 
 
-######Plot Plot Plot Plot log
-ggplot(data=cm.log.df, aes(X1, X2, fill = value)) + 
+fig2 <- ggplot(data=cm.log.df, aes(X1, X2, fill = value)) + 
   geom_tile() + 
   scale_fill_gradient(low = "white", high = "springgreen4") +
   coord_fixed() +
@@ -101,13 +113,4 @@ ggplot(data=cm.log.df, aes(X1, X2, fill = value)) +
     panel.ontop = TRUE
   )
 
-########### clustering ###########
-
-cm.log.df.no.zero <- cm.log.df[cm.log.df[,3]>0,]
-cm.avg <- cm.log.df[1:2]
-dist_mat <- dist(cm.log.df.no.zero, method = 'euclidean')
-hclust_avg <- hclust(dist_mat, method = 'average')
-plot(hclust_avg)
-cluster.cut <- cutree(hclust_avg, 20)
-
-
+fig2
