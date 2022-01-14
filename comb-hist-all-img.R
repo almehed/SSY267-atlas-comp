@@ -1,3 +1,5 @@
+#MIT licence - Sara Almehed
+
 library(oro.nifti)
 library(neurobase)
 library(tidyverse)
@@ -19,10 +21,10 @@ file.HM.names <- "../atlases/hm-regionnames.tsv"
 file.MGC.names <- "../atlases/miccaigc-regionnames.tsv"
 
 #OBS ONLY CHANGE HERE!! Read all files in list of files -> list of nifti elements 
-labels.true <- lapply(files.true.MGC, readnii)
-labels.estimate <-lapply(files.estimate.HM, readnii)
+labels.true <- lapply(files.true.HM, readnii)
+labels.estimate <-lapply(files.estimate.MGC, readnii)
 
-# Read label names Change HM or MGC depending on true and estimate
+#Read label names Change HM or MGC depending on true and estimate
 names.true <- read_tsv(file.HM.names) %>% select(name)
 names.estimate <- read_tsv(file.MGC.names) %>% select(name)
 
@@ -40,14 +42,9 @@ labels.estimate.list <- lapply(labels.estimate, as.vector) %>% unlist
 #Create a data frame with voxels, reference (labels.true) and prediction (labels.estimate)
 df <- data.frame(Voxel = 1:length(labels.true.list), Reference = labels.true.list, Prediction = labels.estimate.list)
 
-#Garbage removal....
-rm(labels.true, labels.estimate, labels.true.list, labels.estimate.list, files.estimate.HM,files.estimate.MGC,files.true.HM, files.true.MGC)
-
 #Remove overlapping background
 df.short <- df[rowSums(df[,-1])>0,]
 
-#Garbage removal....
-rm(df)
 
 ################## Create histogram ####################
 
@@ -65,27 +62,24 @@ for (ref in 0:max(df.short$Reference)) {
   }
 }
 
-#Garbage removal....
-rm(label.pred)
 
 #log for scaling
 cm.log <- log(cm+1)
 
-
-############## Plot with plotly - Do not use "layout" options together with "x" and "y"! ##################
+############## Plot with plotly ##################
 
 fig <- plot_ly(
-  x = names.estimate.vec, y = names.true.vec, #For small images
+  x = names.estimate.vec, #region names for estimate
+  y = names.true.vec, #region names for true
   z = cm.log, type = "heatmap",
   colors = "Purples"
-) #%>%   layout(xaxis = list(title = 'Prediction', #For large image
-   #                         dtick = 20, 
-    #                        tick0 = 0, 
-     #                       tickmode = "linear"), 
-      #         yaxis = list(title = 'Reference',
-       #                     dtick = 10, 
-        #                    tick0 = 0, 
-         #                   tickmode = "linear"))
+) %>% layout(xaxis = list(title = list(text = 'Prediction',standoff = 40L),
+                            tickfont = list(size = 15),
+                            titlefont = list(size = 20)),
+               yaxis = list(title = list(text = 'Reference',standoff = 40L),
+                            tickfont = list(size = 15),
+                            titlefont = list(size = 20))
+               )
 
 fig
 
