@@ -27,14 +27,23 @@ library(ggplot2)
 library(reshape)
 library(plotly)
 
-################################## Read all images and names ######################################
+################### Read all images and names ######################
 
-#List of file paths, full.name = TRUE adds the path to the name eg. "../atlases/mgc2hammers-seg138/a1.nii.gz"
-files.true.HM <- list.files(path = "../atlases/hammers-seg95", pattern = ".nii.gz", full.names = TRUE)
-files.estimate.MGC <- list.files(path = "../atlases/mgc2hammers-seg138", pattern = ".nii.gz", full.names = TRUE)
+#List of file paths, full.name = TRUE adds the path to the name 
+#eg. "../atlases/mgc2hammers-seg138/a1.nii.gz"
+files.true.HM <- list.files(path = "../atlases/hammers-seg95", 
+                            pattern = ".nii.gz", 
+                            full.names = TRUE)
+files.estimate.MGC <- list.files(path = "../atlases/mgc2hammers-seg138", 
+                                 pattern = ".nii.gz", 
+                                 full.names = TRUE)
 
-files.true.MGC <- list.files(path = "../atlases/mgc-seg138", pattern = ".nii.gz", full.names = TRUE)
-files.estimate.HM <- list.files(path = "../atlases/hammers2mgc-seg95", pattern = ".nii.gz", full.names = TRUE)
+files.true.MGC <- list.files(path = "../atlases/mgc-seg138", 
+                             pattern = ".nii.gz", 
+                             full.names = TRUE)
+files.estimate.HM <- list.files(path = "../atlases/hammers2mgc-seg95", 
+                                pattern = ".nii.gz", 
+                                full.names = TRUE)
 
 #File paths for label names
 file.HM.names <- "../atlases/hm-regionnames.tsv"
@@ -59,8 +68,11 @@ names.estimate.vec <- as.character(names.estimate$name)
 labels.true.list <- lapply(labels.true, as.vector) %>% unlist
 labels.estimate.list <- lapply(labels.estimate, as.vector) %>% unlist
 
-#Create a data frame with voxels, reference (labels.true) and prediction (labels.estimate)
-df <- data.frame(Voxel = 1:length(labels.true.list), Reference = labels.true.list, Prediction = labels.estimate.list)
+#Create a data frame with voxels, reference (labels.true) 
+#and prediction (labels.estimate)
+df <- data.frame(Voxel = 1:length(labels.true.list), 
+                 Reference = labels.true.list, 
+                 Prediction = labels.estimate.list)
 
 #Remove overlapping background
 df.short <- df[rowSums(df[,-1])>0,]
@@ -68,7 +80,8 @@ df.short <- df[rowSums(df[,-1])>0,]
 
 ################## Create histogram ####################
 
-cm <- matrix(0,nrow = max(df.short$Reference)+1, ncol = max(df.short$Prediction)+1) %>% as.matrix
+cm <- matrix(0,nrow = max(df.short$Reference)+1, 
+             ncol = max(df.short$Prediction)+1) %>% as.matrix
 
 #For each reference label count predicted labels and add to a matrix
 for (ref in 0:max(df.short$Reference)) {
@@ -118,8 +131,12 @@ fig2 <- ggplot(data=cm.log.df, aes(X1, X2, fill = value)) +
   scale_fill_gradient(low = "white", high = "springgreen4") +
   coord_fixed() +
   guides(fill = guide_colourbar(title = "log(count)"))+
-  scale_y_continuous(name="Prediction", limits=c(-1, 100),breaks = scales::pretty_breaks(n = 15)) +
-  scale_x_continuous(name="Reference", limits=c(-1, 210), breaks = scales::pretty_breaks(n = 15))+
+  scale_y_continuous(name="Prediction", 
+                     limits=c(-1, 100),
+                     breaks = scales::pretty_breaks(n = 15)) +
+  scale_x_continuous(name="Reference", 
+                     limits=c(-1, 210), 
+                     breaks = scales::pretty_breaks(n = 15))+
   theme(
     panel.background = element_rect(fill = NA),
     panel.grid.major = element_line(colour = "gray", size = 0.2),
